@@ -23,9 +23,9 @@ user_states = {}
 
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = 'rtsp_transport;tcp'
 
-rtsp_url = "rtsp://8.devline.ru:9784/cameras/6/streaming/sub?authorization=Basic%20YWRtaW46&audio=0"
 
-def generate_frames(user_id):
+def generate_frames(user_id,rtsp_url):
+    print(rtsp_url, "yo")
     cap = cv2.VideoCapture(rtsp_url)
     
     while True:
@@ -42,13 +42,13 @@ def generate_frames(user_id):
 
         socketio.emit('frame', {'frame': frame_bytes, 'sid':user_id}, namespace='/test', room=user_id)
 
-@socketio.on('connect', namespace='/test')
-def handle_connect():
+@socketio.on('rtsp_url', namespace='/test')
+def handle_connect(data):
     user_id = request.sid
     print(f'User {user_id} connected')
     
     user_states[user_id] = {'send_frames': True, 'frame_lock': threading.Lock()}
-    socketio.start_background_task(target=generate_frames, user_id=user_id)
+    socketio.start_background_task(target=generate_frames, user_id=user_id, rtsp_url = data)
 
 @app.route('/pause', methods=['POST'])
 def pause_frames():
@@ -116,46 +116,6 @@ def overlays():
 
 
     return jsonify({"data": data})
-
-
-
-    
-
-
-
-# cap = cv2.VideoCapture(rtsp_url)
-
-
-# if not cap.isOpened():
-#     print("Error: Couldn't open the video capture.")
-#     exit(-1)
-
-
-# def generate_frames():
-#     while True:
-#         success, frame = cap.read()
-#         if not success:
-#             break
-#         else:
-#             # You can perform any processing on the frame here (e.g., convert format)
-#             # For example, let's convert the frame to grayscale
-#             gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-#             # Encode the frame as JPEG
-#             _, buffer = cv2.imencode('.jpg', gray_frame)
-
-#             # Convert the image buffer to bytes
-#             frame_bytes = buffer.tobytes()
-
-#             # Yield the frame bytes
-#             yield (b'--frame\r\n'
-#                    b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
-
-# @app.route('/test')
-# def index():
-#     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame',headers={'Cache-Control': 'no-cache'})
-#     # return Response(generate_frames(), mimetype='image/jpeg')
 
 
 @app.route("/")
